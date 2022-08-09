@@ -11,15 +11,13 @@ app = Flask(__name__)
 @app.route("/deletename/", methods = ['POST', 'GET'])
 def delete():
 
-    name = request.args['name']
-    Redis.lrem('dinner_name_list', name)
+    name = request.args.get('name')
+    Redis.lrem('dinner_name_list', name, 0)
 
     UI = Layout()
     UI('''
-        <h2>Delete Forms</h2>
-        ''' + JN('''
-        <div>''' + HS(e) + '''</div>
-        ''' for e in errors) + '''
+        <h2>Confirm Delete</h2>
+        <p>Are you sure you want to delete {name}?</p>
         <form method="post" action=''' + QA(request.url) + '''>
             <button class="btn btn-primary" type="submit">Delete ''' + HS(name) + '''</button>
             or
@@ -48,7 +46,7 @@ def index():
             JN('''
             <tr>
                 <td>''' + HS(name) + '''</td>
-                <td><a class="btn btn-primary" href=''' + QA(ML('/deletename', name=name)) + '''>Delete</a></td>
+                <td><a class="btn btn-primary" href=''' + QA(ML('/deletename/', name=name)) + '''>Delete</a></td>
             </tr>
             ''' for name in names) +
             
@@ -89,7 +87,6 @@ def add():
         if errors:
             break
 
-        # process redis here
         Redis.lpush_str('dinner_name_list', name)
 
         return redirect('/')
@@ -134,7 +131,7 @@ class Layout():
                 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
                 <link href="/static/app.css" rel="stylesheet"  crossorigin="anonymous">
 
-                <title>Dinner Payer</title>
+                <title>Dinner Payor</title>
             </head>
             <body>
                 ''' + ('''
