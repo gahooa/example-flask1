@@ -8,19 +8,22 @@ import random
 Redis = Granite.OpenRedis(Host = 'redis', Database = 0)
 app = Flask(__name__)
 
-@app.route("/deletename/", methods = ['POST', 'GET'])
+@app.route("/delete", methods = ['POST', 'GET'])
 def delete():
 
-    name = request.args.get('name')
-    Redis.lrem('dinner_name_list', name, 0)
+    to_delete = request.args.get('name')
+
+    for _ in (range(1) if request.method == 'POST' else range(0)):
+        
+        Redis.lrem('dinner_name_list', 1, to_delete)
+        return redirect('/')
 
     UI = Layout()
     UI('''
         <h2>Confirm Delete</h2>
-        <p>Are you sure you want to delete {name}?</p>
+        <p>Are you sure you want to delete ''' + HS(to_delete) + '''?</p>
         <form method="post" action=''' + QA(request.url) + '''>
-            <button class="btn btn-primary" type="submit">Delete ''' + HS(name) + '''</button>
-            or
+            <button class="btn btn-primary" type="submit">Delete ''' + HS(to_delete) + '''</button>
             <a class="btn btn-primary" href="/">Cancel</a>
         </form>
     ''')
@@ -31,14 +34,14 @@ def delete():
 def index():
 
     names = Redis.lrange_str('dinner_name_list', 0, -1)
-
+    
     UI = Layout()
     UI('''
         <h2>People List</h2>
         <table>
             
             <tr>
-                <th>Names</th>
+                <th>Name</th>
                 <th>Action</th>
             </tr>
             ''' +
@@ -46,7 +49,7 @@ def index():
             JN('''
             <tr>
                 <td>''' + HS(name) + '''</td>
-                <td><a class="btn btn-primary" href=''' + QA(ML('/deletename/', name=name)) + '''>Delete</a></td>
+                <td><a class="btn btn-primary" href=''' + QA(ML('/delete', name = name)) + '''>Delete</a></td>
             </tr>
             ''' for name in names) +
             
@@ -81,8 +84,8 @@ def add():
 
         if not name:
             errors.append('Name is required.')
-        if len(name) > 10:
-            errors.append('Name must not be longer than 10 characters.')
+        if len(name) > 12:
+            errors.append('Name must not be longer than 12 characters.')
 
         if errors:
             break
@@ -99,8 +102,8 @@ def add():
         ''' for e in errors) + '''
         <form method="post" action=''' + QA(request.url) + '''>
             <input class="form-control" type="text" id="name" name="name" value=''' + QA(name) + '''><br>
-            <button class="btn btn-primary" type="submit">Save</button>
-             or <a class="btn btn-primary" href="/">Cancel</a>
+            <button class="btn btn-primary" type="submit">Add</button>
+            <a class="btn btn-primary" href="/">Cancel</a>
         </form>
 
         <hr>
