@@ -1,3 +1,39 @@
 body {
-    color: red;
+    color: #333;
+    background-color: #eee;
 }
+
+.container {
+    max-width: 80%;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+td, th {
+    padding: 10px;
+    text-align: center;
+}
+
+th {
+    border-bottom: 1px solid #888;
+}
+
+.btn-primary {
+    background-color: #f95d06;
+    border-color: #ea7638;
+    margin: 5px;
+}
+
+.btn-primary:hover {
+    background-color: #ea7638;
+    border-color: #ea7638;
+}
+
+.btn-primary:focus, .btn-primary:active, input:focus, .uneditable-input:focus, select {
+    background-color: #ea7638;
+    border-color: #ea7638;
+    box-shadow: 0 0 8px rgba(249, 93, 6, 0.7) !important;
+    -webkit-box-shadow: 0 0 8px rgba(249, 93, 6, 0.7) !important;
+    -moz-box-shadow: 0 0 8px rgba(249, 93, 6, 0.7) !important;
+  }
+  

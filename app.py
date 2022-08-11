@@ -1,40 +1,116 @@
 # vim:fileencoding=utf-8:ts=4:sw=4:sts=4:expandtab
 
-from flask import Flask, escape, Markup
-
+from flask import Flask, redirect, request
 import Granite
-from Granite import QA, HS
+from Granite import QA, HS, JN, ML
+import random
 
-Redis = Granite.OpenRedis(Host='redis', Database=0)
-
+Redis = Granite.OpenRedis(Host = 'redis', Database = 0)
 app = Flask(__name__)
 
-@app.route("/")
-def hello_world():
+@app.route("/delete", methods = ['POST', 'GET'])
+def delete():
 
-    
-    num = Redis.get_int('count') or 0
+    to_delete = request.args.get('name')
 
-    Redis.set_int('count', num+1)
-    
+    for _ in (range(1) if request.method == 'POST' else range(0)):
+        
+        Redis.lrem('dinner_name_list', 1, to_delete)
+        return redirect('/')
+
     UI = Layout()
     UI('''
-        <h1>Hello visitor #''' + HS(num) + ''', this is an example flask app</h1>
-        <hr>
-        Look at <code>app.py</code> to see how it works.
-        <hr>
-        <img style="width: 400px; height: 400px;" src="/static/svg.svg">
-        
+        <h2>Confirm Delete</h2>
+        <p>Are you sure you want to delete ''' + HS(to_delete) + '''?</p>
+        <form method="post" action=''' + QA(request.url) + '''>
+            <button class="btn btn-primary" type="submit">Delete ''' + HS(to_delete) + '''</button>
+            <a class="btn btn-primary" href="/">Cancel</a>
+        </form>
     ''')
-    
+
     return UI.Render()
 
-@app.route("/hi")
-def hi():
+@app.route("/")
+def index():
+
+    names = Redis.lrange_str('dinner_name_list', 0, -1)
+    
     UI = Layout()
     UI('''
-        hi
+        <h2>People List</h2>
+        <table>
+            
+            <tr>
+                <th>Name</th>
+                <th>Action</th>
+            </tr>
+            ''' +
+            
+            JN('''
+            <tr>
+                <td>''' + HS(name) + '''</td>
+                <td><a class="btn btn-primary" href=''' + QA(ML('/delete', name = name)) + '''>Delete</a></td>
+            </tr>
+            ''' for name in names) +
+            
+            '''
+        </table>
     ''')
+
+    return UI.Render()
+
+@app.route("/dinner")
+def dinner():
+
+    names = Redis.lrange_str('dinner_name_list', 0, -1)
+
+    UI = Layout()
+    UI('''
+        <h2>Who's paying?</h2>
+        <p>''' + HS(random.choice(names)) +''' is paying for the dinner.</p>
+        <a class="btn btn-primary" href="/">Cancel</a>
+    ''')
+
+    return UI.Render()
+
+@app.route("/add", methods=['POST', 'GET'])
+def add():
+
+    errors = []
+    name = ""
+
+    for _ in (range(1) if request.method == 'POST' else range(0)):
+        name = request.form['name'].strip()
+
+        if not name:
+            errors.append('Name is required.')
+        if len(name) > 12:
+            errors.append('Name must not be longer than 12 characters.')
+
+        if errors:
+            break
+
+        Redis.lpush_str('dinner_name_list', name)
+
+        return redirect('/')
+
+    UI = Layout()
+    UI('''
+        <h2>Add Person</h2>
+        ''' + JN('''
+            <div>''' + HS(e) + '''</div>
+        ''' for e in errors) + '''
+        <form method="post" action=''' + QA(request.url) + '''>
+            <input class="form-control" type="text" id="name" name="name" value=''' + QA(name) + '''><br>
+            <button class="btn btn-primary" type="submit">Add</button>
+            <a class="btn btn-primary" href="/">Cancel</a>
+        </form>
+
+        <hr>
+
+
+    ''')
+
     return UI.Render()
 
 class Layout():
@@ -42,39 +118,46 @@ class Layout():
         self.Container = True
         self.Body = []
 
-    def __call__(self, content):#self, content):
+    def __call__(self, content):
         self.Body.append(str(content))
 
     def Render(self):
-        return ('''<!doctype html>
-<html lang="en">
-  <head>
-    <!-- Required meta tags -->
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+        return ('''
+            <!doctype html>
+            <html lang="en">
+            <head>
+                <!-- Required meta tags -->
+                <meta charset="utf-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
-    <link href="/static/app.css" rel="stylesheet"  crossorigin="anonymous">
+                <!-- Bootstrap CSS -->
+                <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+                <link href="/static/app.css" rel="stylesheet"  crossorigin="anonymous">
 
-    <title>Hello, world!</title>
-  </head>
-  <body>
-    ''' + ('''
-    <div class="container">
-        <nav>
-            <a href="/">home</a>
-            <a href="/hi">hi</a>
-        </nav>
-        ''' + ''.join(self.Body) + '''
-    </div>
-    ''' if self.Container else '''
-        ''' + ''.join(self.Body) + '''
-    ''') + '''
+                <title>Dinner Payor</title>
+            </head>
+            <body>
+                ''' + ('''
+                <div class="container">
+                    <nav>
+                        <a class="btn btn-primary" href="/">Home</a>
+                        <a class="btn btn-primary" href="/add">Add Person</a>
+                        <a class="btn btn-primary" href="/dinner">Who's Paying?</a>
+                    </nav>
+                    <hr>
+                    ''' + ''.join(self.Body) + '''
+                </div>
+                ''' if self.Container else '''
+                    ''' + ''.join(self.Body) + '''
+                ''') + '''
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
-  </body>
-</html>
-''')
+                <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
+            </body>
+            </html>
+            ''')
 
-
+''' questions
+couldn't for _ in (range(1) if request.method == 'POST' else range(0)): be replaced by some sort of try-except model?
+do we have a Granite Cog?
+why do I have to break and restart Flask when I edit app.py (but not other files)?
+'''
